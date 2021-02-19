@@ -1,0 +1,351 @@
+---
+title: "Geomorphometric Analysis"
+author: "Stephanie Martinez"
+date: '2020'
+output:
+  html_document: default
+  pdf_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Geomorphometric analysis
+
+Here I present the code used in my geometric morphometric analysis. The morphometry (body and head views) of each species was analyzed separately. Thus, the markdown sections will be structure as such.
+
+### Packages and data
+
+Load .tps files that contains coordinate data, and a classifier dataframe containing environmental variables and location information (e.g. year, lake name, species (sp), temperature)
+
+```{r packages, message=FALSE, warning=FALSE}
+library("geomorph")
+library("tidyr")
+library("dplyr")
+library("artyfarty")
+library("ggpubr")
+library("ggplot2")
+```
+
+**Abbreviations:**
+
+-   epun = *Exyrias puntang* ; ajan = *Acentrogobius janthinopterus*
+
+-   bepun = body *E. puntang ;* bajan = body *A. janthinopterus*
+
+-   hepun = head *E. puntang ;* hajan = head A. janthinopterus
+
+```{r data, echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
+body_epun <- readland.tps("data/body_epun.TPS", specID = "ID", warnmsg =T)
+body_ajan <- readland.tps("data/body_ajan.TPS", specID = "ID", warnmsg =T)
+head_epun <- readland.tps("data/head_epun.TPS", specID = "ID", warnmsg =T)
+head_ajan <- readland.tps("data/head_ajan.TPS", specID = "ID", warnmsg =T)
+
+class <- read.csv("data/classifiers.csv", header=T, dec=".", sep = ";") %>% 
+  filter(sp!="nd") #remove nd (not identified) specimens
+
+```
+
+## *1- Exyrias puntang*
+
+Adapt and clean the classifiers data frame to *E. puntang* .tps data structure
+
+```{r epun clasifier}
+class_epun <- class %>%
+  filter(sp!="sp2") %>% 
+  filter(!grepl('WAR04_G7_L1', ID)) %>% #outlier - removed
+  droplevels()
+```
+
+### Superimposition of raw coordinates
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+bepun_gpagen <- gpagen(body_epun, Proj=TRUE, print.progress = FALSE)
+plot(bepun_gpagen)
+title(main="Body E.puntang procrustes")
+hepun_gpagen <- gpagen(head_epun, Proj=TRUE, print.progress = FALSE)
+plot(hepun_gpagen)
+title(main="Head E.puntang procrustes")
+
+```
+
+### PCA of superimposed coordinates
+
+The PCA analysis was done using *geomorph*. Plotting was done by extracting values from the test and using *ggplot2.*
+
+First, the PCA analysis
+
+```{r pca analyzes}
+pca_bepun <- gm.prcomp(bepun_gpagen$coords)
+pca_hepun <- gm.prcomp(hepun_gpagen$coords)
+```
+
+Now, we can extract the values needed for plotting using *ggplot2.* We also set classifiers as factors for our plot.
+
+```{r message=FALSE, warning=FALSE, results='hide'}
+
+#Grouping factors 
+lakes_epun <- as.factor(class_epun[,3])
+conn_epun <- as.factor(class_epun[,6])
+#extracting PCA component values for plot
+comp.bepun <- as.data.frame(pca_bepun$x) %>% 
+  dplyr::select(Comp1, Comp2) 
+comp.hepun <- as.data.frame(pca_hepun$x) %>% 
+  dplyr::select(Comp1, Comp2)
+#extracting PCA variance for plot axis
+a1 <- summary(pca_bepun) #make the summary an object to extract information
+axis1 <- as.data.frame(a1$PC.summary) %>% 
+  dplyr::select(Comp1,Comp2) %>% 
+  mutate(Comp1 = Comp1*100, Comp2 = Comp2*100)
+a2 <- summary(pca_hepun)  
+axis2 <- as.data.frame(a2$PC.summary) %>% 
+  dplyr::select(Comp1,Comp2) %>% 
+  mutate(Comp1 = Comp1*100, Comp2 = Comp2*100)
+```
+
+Finally, we can produce a plot using *ggplot*
+
+```{r pca plot ggplot}
+#Body
+plot_bepun <- ggplot()+ 
+  theme_scientific()+
+  geom_point(data=comp.bepun,  
+             aes(x = Comp1, 
+                 y = Comp2,
+                 color =lakes_epun,
+                 shape= lakes_epun), size = 3) +
+  scale_color_manual(breaks=c("kar02","mis01","mis17","mis20","mis31","war03","war04","way04"), 
+                     values = c("#000080","#ffa500","#33A02C","#474444","#1078bf","#df546c","#B2DF8A","#1be0e4")) +
+  scale_shape_manual(breaks=c("kar02","mis01","mis17","mis20","mis31","war03","war04","way04"),
+                     values=c(8,15,16,1,18,4,15,10))+
+  theme(legend.position = "bottom", legend.title = element_blank())+
+  labs(x=paste("PCA1 (",round(axis1$Comp1[2],2),"%)"), 
+       y =paste("PCA2 (",round(axis1$Comp2[2],2),"%)")) +
+  ggtitle("(a) Body landmarks")+
+  theme(plot.title = element_text(hjust = -0.15))
+#Head
+plot_hepun <- ggplot()+ 
+  theme_scientific()+
+  geom_point(data=comp.hepun,  
+             aes(x = Comp1, 
+                 y = Comp2,
+                 color =lakes_epun,
+                 shape= lakes_epun), size = 3) +
+  scale_color_manual(breaks=c("kar02","mis01","mis17","mis20","mis31","war03","war04","way04"), 
+                     values = c("#000080","#ffa500","#33A02C","#474444","#1078bf","#df546c","#B2DF8A","#1be0e4")) +
+  scale_shape_manual(breaks=c("kar02","mis01","mis17","mis20","mis31","war03","war04","way04"),
+                     values=c(8,15,16,1,18,4,15,10))+
+  theme(legend.position = "bottom", legend.title = element_blank())+
+  labs(x=paste("PCA1 (",round(axis2$Comp1[2],2),"%)"), 
+       y =paste("PCA2 (",round(axis2$Comp2[2],2),"%)")) +
+  ggtitle("(b) Head landmarks")+
+  theme(plot.title = element_text(hjust = -0.15))
+#Plot
+ggarrange(plot_bepun, plot_hepun, common.legend=TRUE, legend = "bottom")
+```
+
+To select and pick warp grids in the PCA plot, you can use the function *picknplot*.*shape* from the package *geomorph*. However, these warps can only be extracted from a plot that uses the *plot* function. On the console, you can choose whether to select another point in the plot, and if you wish to save it as a .png image. See example bellow.
+
+```{r warp plots, eval=FALSE, message=FALSE, warning=FALSE}
+warp_bepun <- plot(pca_bepun, main="Body PCA Exyrias puntang")
+points(pca_bepun$x,pch=19, col=lakes_epun)
+legend("topleft", levels(lakes_epun), pch=19, col=1:8)
+picknplot.shape(warp_bepun) #select warp grid in PCA plot
+
+```
+
+## *2- Acentrogobius janthinopterus*
+
+For this species, we followed the same process a describe before for *Exyrias puntang*
+
+Adapt and clean the classifiers data frame to *E. puntang* .tps data structure
+
+```{r ajan clasifier}
+class_ajan <- class %>%
+  filter(sp!="sp1") %>% 
+  filter(!grepl('KAR02', ID)) %>% 
+  droplevels()
+```
+
+### Superimposition of raw coordinates
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+bajan_gpagen <- gpagen(body_ajan, Proj=TRUE, print.progress = FALSE)
+plot(bajan_gpagen)
+title(main="Body A.janthinopterus procrustes")
+hajan_gpagen <- gpagen(head_ajan, Proj=TRUE, print.progress = FALSE)
+plot(hajan_gpagen)
+title(main="Head A. janthinopterus procrustes")
+
+```
+
+### PCA of superimposed coordinates
+
+PCA analysis
+
+```{r pca ajan analyzes}
+pca_bajan <- gm.prcomp(bajan_gpagen$coords)
+pca_hajan <- gm.prcomp(hajan_gpagen$coords)
+```
+
+Extracting values needed for plotting using *ggplot2.* We also set classifiers as factors for our plot.
+
+```{r message=FALSE, warning=FALSE, results='hide'}
+
+#Grouping factors 
+lakes_ajan <- as.factor(class_ajan[,3])
+conn_ajan <- as.factor(class_ajan[,6])
+#extracting PCA component values for plot
+comp.bajan <- as.data.frame(pca_bajan$x) %>% 
+  dplyr::select(Comp1, Comp2) 
+comp.hajan <- as.data.frame(pca_hajan$x) %>% 
+  dplyr::select(Comp1, Comp2)
+#extracting PCA variance for plot axis
+a3 <- summary(pca_bajan) #make the summary an object to extract information
+axis3 <- as.data.frame(a3$PC.summary) %>% 
+  dplyr::select(Comp1,Comp2) %>% 
+  mutate(Comp1 = Comp1*100, Comp2 = Comp2*100)
+a4 <- summary(pca_hajan)  
+axis4 <- as.data.frame(a4$PC.summary) %>% 
+  dplyr::select(Comp1,Comp2) %>% 
+  mutate(Comp1 = Comp1*100, Comp2 = Comp2*100)
+```
+
+Finally, we can produce a plot using *ggplot* for *Acentrogobius janthinopterus*
+
+```{r pca plot ggplot ajan}
+#Body
+plot_bajan <- ggplot()+ 
+  theme_scientific()+
+  geom_point(data=comp.bajan,  
+             aes(x = Comp1, 
+                 y = Comp2,
+                 color =lakes_ajan,
+                 shape= lakes_ajan), size = 3) +
+  scale_color_manual(breaks=c("mis14","mis31","raj04","war01","war03","war04"), 
+                     values=c("#8c008c","#1078bf","#ff66b3","#000000","#fd1530","#B2DF8A")) +
+  scale_shape_manual(breaks=c("mis14","mis31","raj04","war01","war03","war04"),
+                     values=c(17,18,16,0,4,15))+
+  theme(legend.position = "bottom", legend.title = element_blank())+
+  labs(x=paste("PCA1 (",round(axis3$Comp1[2],2),"%)"), 
+       y =paste("PCA2 (",round(axis3$Comp2[2],2),"%)"))+
+  theme(plot.title = element_text(hjust = -0.15)) +
+  ggtitle("(a) Head Landmarks")
+#Head
+plot_hajan <- ggplot()+ 
+  theme_scientific()+
+  geom_point(data=comp.hajan,  
+             aes(x = Comp1, 
+                 y = Comp2,
+                 color =lakes_ajan,
+                 shape= lakes_ajan), size = 3) +
+  scale_color_manual(breaks=c("mis14","mis31","raj04","war01","war03","war04"), 
+                     values=c("#8c008c","#1078bf","#ff66b3","#000000","#fd1530","#B2DF8A")) +
+  scale_shape_manual(breaks=c("mis14","mis31","raj04","war01","war03","war04"),
+                     values=c(17,18,16,0,4,15))+
+  theme(legend.position = "bottom", legend.title = element_blank())+
+  labs(x=paste("PCA1 (",round(axis4$Comp1[2],2),"%)"), 
+       y =paste("PCA2 (",round(axis4$Comp2[2],2),"%)"))+
+  ggtitle("(a) Head Landmarks")+
+  theme(plot.title = element_text(hjust = -0.15))
+#Plot
+ggarrange(plot_bajan, plot_hajan, common.legend=TRUE, legend = "bottom")
+```
+
+## 3- Statistical analyses
+
+### MANOVA
+
+To test if there were differences in the morphology of these species across lakes, a MANOVA test was performed using *ProcD.lm*
+
+First, the superimposed coordinate data has to be arrange as a data frame
+
+```{r manova dataframe}
+#Exyrias puntang
+gdf_bepun <- geomorph.data.frame(bepun_gpagen, 
+                                lake = class_epun$lake, 
+                                conn = class_epun$connec,
+                                temp = class_epun$temp)
+                                
+gdf_hepun <- geomorph.data.frame(hepun_gpagen, 
+                                lake = class_epun$lake, 
+                                conn = class_epun$connec,
+                                temp = class_epun$temp)
+
+# Acentrogobius janthinopterus
+gdf_bajan <- geomorph.data.frame(bajan_gpagen, 
+                               lake = class_ajan$lake, 
+                               conn = class_ajan$connec,
+                               temp = class_ajan$temp)
+gdf_hajan <- geomorph.data.frame(bajan_gpagen, 
+                               lake = class_ajan$lake, 
+                               conn = class_ajan$connec,
+                               temp = class_ajan$temp)
+
+```
+
+MANOVAs using each lake and connectivity levels as grouping factors.
+
+**Note:** RRPP uses randomize raw values
+
+```{r manova, results='hide'}
+# Exyrias puntang
+fit1_bepun <- procD.lm(bepun_gpagen$coords ~ lake, 
+                      data = gdf_bepun, iter = 999, 
+                      RRPP = FALSE, print.progress = FALSE)
+fit2_bepun <- procD.lm(bepun_gpagen$coords ~ conn, 
+                     data = gdf_bepun, iter = 999, 
+                     RRPP = FALSE, print.progress = FALSE)
+fit3_hepun <- procD.lm(hepun_gpagen$coords ~ lake, 
+                      data = gdf_hepun, iter = 999, 
+                      RRPP = FALSE, print.progress = FALSE)
+fit4_hepun <- procD.lm(hepun_gpagen$coords ~ conn, 
+                     data = gdf_hepun, iter = 999, 
+                     RRPP = FALSE, print.progress = FALSE)
+summary(fit1_bepun)
+summary(fit2_bepun)
+summary(fit3_hepun)
+summary(fit4_hepun)
+
+# Acentrogobius janthinopterus
+fit1_bajan <- procD.lm(bajan_gpagen$coords ~ lake, 
+                     data = gdf_bajan, iter = 999, 
+                     RRPP = FALSE, print.progress = FALSE)
+fit2_bajan <- procD.lm(bajan_gpagen$coords ~ conn, 
+                     data = gdf_bajan, iter = 999, 
+                     RRPP = FALSE, print.progress = FALSE)
+fit3_hajan <- procD.lm(hajan_gpagen$coords ~ lake, 
+                     data = gdf_hajan, iter = 999, 
+                     RRPP = FALSE, print.progress = FALSE)
+fit4_hajan <- procD.lm(hajan_gpagen$coords ~ conn, 
+                     data = gdf_hajan, iter = 999, 
+                     RRPP = FALSE, print.progress = FALSE)
+summary(fit1_bajan)
+summary(fit2_bajan)
+summary(fit3_hajan)
+summary(fit4_hajan)
+```
+
+### Post-hoc Pairwise test
+
+To see which lakes where contributing to the differences in morphology, we performed a post-hoc pairwise test from the RRP package.
+
+The test uses *"dist"* which is the distance between LS means. By specifying a confidence level, we are given upper confidence limits (UCL) from the distributions of pairwise distances.
+
+If the observed distances are larger than the UCL, the p-value is less than 1 - confidence (0.005), the distances are "significantly" different.
+
+```{r pairwise tests, results='hide'}
+# Exyrias puntang
+PW_bepun <- pairwise(fit1_bepun, groups = gdf_bepun$lake)
+summary(PW_bepun, test.type = "dist", confidence = 0.95, stat.table = FALSE)
+PW_hepun <- pairwise(fit3_hepun, groups = gdf_hepun$lake)
+summary(PW_hepun, test.type = "dist", confidence = 0.95, stat.table = FALSE)
+# Acentrogobius janthinopterus
+PW_bajan <- pairwise(fit1_bajan, groups = gdf_bajan$lake)
+summary(PW_bepun, test.type = "dist", confidence = 0.95, stat.table = FALSE)
+PW_hajan <- pairwise(fit3_hajan, groups = gdf_hajan$lake)
+summary(PW_hepun, test.type = "dist", confidence = 0.95, stat.table = FALSE)
+```
