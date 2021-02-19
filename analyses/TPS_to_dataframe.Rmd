@@ -1,0 +1,109 @@
+---
+title: "TPS_reshape"
+author: "Stephanie Martinez"
+date: "2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Reshaping .TPS files into .cvs files
+
+The following markdown will show the steps to reshaping a .TPS files into .cvs files that were used in the linear morphometric analyses. This process was repeated for each fish view (body, head, and ventral), and for each species: *Exyrias puntang (*epun) and *Acentrogobius janthinopterus* (ajan)\
+\
+**Note**: The names of each sample (image) contains the necessary information to identify sample number, location, and view. This is necessary for the later steps of the reshaping process
+
+**Note:** ventral view measures were only taken for *Exyrias puntgang* individuals
+
+### Packages
+
+```{r packages, echo=TRUE, message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(geomorph)
+library(reshape2)
+```
+
+The number of landmarks (landm) used on the files should be replaced accordingly:
+
+-   Body view = 18
+
+-   Head view = 12
+
+-   Ventral view = 5
+
+**Note:** "epun" stands for *Exyrias puntang*
+
+```{r data, echo=FALSE}
+coords <- readland.tps("data/body_epun.TPS", specID ="ID", warnmsg = T)
+landm<-18
+coords_2d <- as.data.frame(two.d.array(coords)) # put in a 2D array with species as the x input and coordinates (x&y) as y input
+
+```
+
+### Reshaping 2d array
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+var1 <- as.data.frame(matrix(c("x","y"), landm, 2, byrow=T))
+var1$x <- paste(var1$V1, rownames(var1), sep="")
+var1$y <- paste(var1$V2, rownames(var1), sep="")
+var2 <- as.vector(t(var1[,-1:-2]))  # vector containing names of the variables
+names(coords_2d) <- var2 # dataframe with correct variable names
+coords1 <- coords_2d
+coords1$ID <- rownames(coords_2d)
+coords2 <- melt(coords1, id.vars="ID")
+coords2$axis <- substr(coords2$variable,1,1)
+coords2$point <- as.numeric(substr(coords2$variable,2,4))
+coords_final <- dcast(coords2, ID + point~axis) 
+```
+
+```{r}
+head(coords_final)
+```
+
+### Adjusting column names and format
+
+So far, each landmark is identified with a number code. In order to later calculate inter-landmark distances using *r2d2,* it is necessary to assign a unique letter to each landmark (column pointL)\
+\
+In this case, for each view (body, head, ventral) a different letter range is required:
+
+-   Body = [1:18]
+
+-   Head = [1:12]
+
+-   Ventral = [1:5]
+
+Moreover, with *separate* with can create new columns based on the sample information that ID provides
+
+```{r message=FALSE, warning=FALSE}
+coords_final2 <- coords_final %>% 
+  separate(ID, into = c("lake", "goby","side"), sep = "_", remove = FALSE) %>%
+  dplyr::select(-side) %>% 
+  mutate(pointL = rep(LETTERS[1:18],length(unique(.$ID)))) %>% #change letter range accordingly
+  relocate(pointL, .after=point) 
+head(coords_final2)
+
+```
+
+### Export as a csv
+
+Remember to change the output file name according to each view
+
+```{r}
+
+write.csv(coords_final2,'data/coords_body_epun.csv')
+```
+
+The same process was done for each view and species obtaining as an output the following dataframes:
+
+-   "data/coords_body_epun.csv"
+
+-   "data/coords_head_epun.csv"
+
+-   "data/coords_ventral_epun.csv"
+
+-   "data/coords_body_ajan.csv"
+
+-   "data/coords_head_ajan.csv"
