@@ -1,0 +1,333 @@
+---
+title: "Interlandmark distances calculation"
+author: "Stephanie Martinez"
+date: "2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This script was used to calculate interlandmark distances that were later used in the linear morphometric analyzes. In this case, we used the coordinates .csv files from "analyses/TPS_to_dataframe.Rmd"
+
+Moreover, at the end we merge the dataframes (head, body and ventral) to create an unified dataframe for each species.
+
+For this, we created and use the *"r2d2"* function*,* which can be found in the /R directory
+
+**Abbreviations:**
+
+-   epun = *Exyrias puntang* ; ajan = *Acentrogobius janthinopterus*
+
+-   bepun = body *E. puntang ;* bajan = body *A. janthinopterus*
+
+-   hepun = head *E. puntang ;* hajan = head A. janthinopterus
+
+**Note:** The force is strong with this script
+
+### Packages and data
+
+```{r packages and data, message=FALSE, warning=FALSE}
+
+library(dplyr)
+library(tidyr)
+library(raster)
+library(glue)
+library(purrr)
+source("R/r2d2.R")
+
+bepun <- read.csv("data/coords_body_epun.csv", header=TRUE)
+hepun <- read.csv("data/coords_head_epun.csv", header=TRUE)
+vepun <- read.csv("data/coords_ventral_epun.csv", header=TRUE)
+bajan <- read.csv("data/coords_body_ajan.csv", header=TRUE)
+hajan <- read.csv("data/coords_head_ajan.csv", header=TRUE)
+```
+
+### Defining landmarks
+
+In this section we define a list that corresponds to the pair of landmarks that we are interested in calculating their distance. This list will use the LETTER designation that we assigned to each landmark on the previous script (analyses/TPS_to_dataframe.Rmd)
+
+Where, each lists equals to "chopper" in the *r2d2* functions
+
+Since for both species we are interested in the same interlandmark distances, we just need to define the lists based on each view (body, head, ventral)
+
+```{r}
+
+body <- list(c("A","Q"),c("A","R"),c("A","D"),c("B","C"),c("F","G"),
+                 c("F","I"),c("G","I"),c("D","J"),c("K","M"),c("H","L"),
+                 c("L","N"),c("M","N"),c("O","P"),c("D","E"),c("J","K"))
+
+head <- list(c("A","C"), c("C","E"), c("E","F"), c("B","K"), c("L","J"),
+            c("A","G"),c("A","H"),c("A","F"))
+
+ventral <- list(c("A","B"), c("C","D"), c("C","E"),c("D","E"))
+```
+
+### Applying r2d2
+
+Now we can calculate the distances between the previously indicated landmarks by applying *r2d2*
+
+***Exyrias puntang***
+
+```{r epun, results='hide'}
+# Body view
+leia_bepun <- body %>% 
+  map(r2d2,chopper=bepun) %>% 
+  data.frame()
+# Head view
+leia_hepun <- head %>% 
+  map(r2d2,chopper=hepun) %>% 
+  data.frame()
+# Ventral view
+leia_vepun <- ventral %>% 
+  map(r2d2,chopper=vepun) %>% 
+  data.frame()
+```
+
+***Acentrogobius janthinopterus***
+
+For this species we couldn't get the ventral view measurements
+
+```{r ajan, results='hide'}
+# Body view
+leia_bajan <- body %>% 
+  map(r2d2,chopper=bajan) %>% 
+  data.frame()
+# Head view
+leia_hajan <- head %>% 
+  map(r2d2,chopper=hajan) %>% 
+  data.frame()
+```
+
+### Dataframe adjustment
+
+The function has calculated all the indicated functions, but the column names of the dataframes are all messy, as seen bellow.
+
+```{r echo=FALSE}
+
+head(leia_bepun, n=c(2,4))
+
+```
+
+The next step is then to adjust/rename the column names according to the correspondent measurement name. The important part of this step is to assign for each view (body, head, ventral) the correct LETTER range. This comes from the LETTER range that we assigned to each landmark on the "analyses/TPS_to_dataframe.Rmd" script.
+
+Moreover, the ID column is placed last on the dataframe. To move it to the first one, we need to specify which one is first initially. This will depend on the view, where:
+
+-   Body: A_Q
+
+-   Head: A_C
+
+-   Ventral (A_B)
+
+***Exyrias puntang***
+
+```{r epun dataframe, warning=FALSE}
+#Body
+colnames(leia_bepun) <- body %>% 
+  unlist() %>% 
+  matrix(ncol=2, byrow=TRUE) %>% 
+  data.frame() %>% 
+  mutate(X3=paste(X1,"_",X2,sep = "")) %>% 
+  dplyr::select(X3) %>% 
+  unlist()
+leia_bepun$ID <- unique(bepun$ID)
+leia_bepun <- leia_bepun %>%
+  relocate(ID, .before=A_Q) %>% #change letter code 
+  separate(ID, into = c("lake", "goby","side"), sep = "_", remove = FALSE) %>% 
+  dplyr::select(-side)
+#Head
+colnames(leia_hepun) <- head %>% 
+  unlist() %>% 
+  matrix(ncol=2, byrow=TRUE) %>% 
+  data.frame() %>% 
+  mutate(X3=paste(X1,"_",X2,sep = "")) %>% 
+  dplyr::select(X3) %>% 
+  unlist()
+leia_hepun$ID <- unique(hepun$ID)
+leia_hepun <- leia_hepun %>%
+  relocate(ID, .before=A_C) %>% #change letter code 
+  separate(ID, into = c("lake", "goby","side"), sep = "_", remove = FALSE) %>% 
+  dplyr::select(-side)
+#Ventral
+colnames(leia_vepun) <- ventral %>% 
+  unlist() %>% 
+  matrix(ncol=2, byrow=TRUE) %>% 
+  data.frame() %>% 
+  mutate(X3=paste(X1,"_",X2,sep = "")) %>% 
+  dplyr::select(X3) %>% 
+  unlist()
+leia_vepun$ID <- unique(vepun$ID)
+leia_vepun <- leia_vepun %>%
+  relocate(ID, .before=A_B) %>% #change letter code 
+  separate(ID, into = c("lake", "goby","side"), sep = "_", remove = FALSE) %>% 
+  dplyr::select(-side)
+```
+
+***Acentrogobius janthinopterus***
+
+```{r ajan dataframe, warning=FALSE}
+#Body
+colnames(leia_bajan) <- body %>% 
+  unlist() %>% 
+  matrix(ncol=2, byrow=TRUE) %>% 
+  data.frame() %>% 
+  mutate(X3=paste(X1,"_",X2,sep = "")) %>% 
+  dplyr::select(X3) %>% 
+  unlist()
+leia_bajan$ID <- unique(bajan$ID)
+leia_bajan <- leia_bajan %>%
+  relocate(ID, .before=A_Q) %>% #change letter code 
+  separate(ID, into = c("lake", "goby","side"), sep = "_", remove = FALSE) %>% 
+  dplyr::select(-side)
+#Head
+colnames(leia_hajan) <- head %>% 
+  unlist() %>% 
+  matrix(ncol=2, byrow=TRUE) %>% 
+  data.frame() %>% 
+  mutate(X3=paste(X1,"_",X2,sep = "")) %>% 
+  dplyr::select(X3) %>% 
+  unlist()
+leia_hajan$ID <- unique(hajan$ID)
+leia_hajan <- leia_hajan %>%
+  relocate(ID, .before=A_C) %>% #change letter code 
+  separate(ID, into = c("lake", "goby","side"), sep = "_", remove = FALSE) %>% 
+  dplyr::select(-side)
+```
+
+Nice! now we have better looking dataframes
+
+```{r echo=FALSE}
+head(leia_bepun,n=c(3,8))
+```
+
+However, these letter ranges are difficult to follow eventually. So now we can replace the letter codes for the interlandmark distances abbreviations. For example A_Q = SL (standard length). For all the interlandmark abbreviations, see full report.
+
+***Exyrias puntang***
+
+```{r}
+#Body
+leia_bepun <- leia_bepun %>% 
+  rename(
+     SL= A_Q,
+     TL=A_R,
+     PRF=A_D,
+     HP=B_C,
+     PFB=F_G,
+     PH=F_I,
+     PH2=G_I,
+     ADL=D_J,
+     POD=K_M,
+     PAL=H_L,
+     ABL=L_N,
+     CPD=M_N,
+     MBL=O_P,
+     BD=D_E,
+     DD=J_K
+     )
+#Head
+leia_hepun <- leia_hepun %>% 
+  rename(
+    PRO= A_C,
+    ED=C_E,
+    POO=E_F,
+    ML=B_K,
+    LJ=L_J,
+    HL=A_G,
+    PRP=A_H,
+    POP=A_F,
+    )
+#Ventral
+leia_vepun <- leia_vepun %>% 
+  rename(
+    OW= A_B,
+    VF=C_D,
+    PEH=C_E,
+    PEH2=D_E
+  )
+```
+
+***Acentrogobius janthinopterus***
+
+```{r}
+#Body
+leia_bajan <- leia_bajan %>% 
+  rename(
+     SL= A_Q,
+     TL=A_R,
+     PRF=A_D,
+     HP=B_C,
+     PFB=F_G,
+     PH=F_I,
+     PH2=G_I,
+     ADL=D_J,
+     POD=K_M,
+     PAL=H_L,
+     ABL=L_N,
+     CPD=M_N,
+     MBL=O_P,
+     BD=D_E,
+     DD=J_K
+     )
+#Head
+leia_hajan <- leia_hajan %>% 
+  rename(
+    PRO= A_C,
+    ED=C_E,
+    POO=E_F,
+    ML=B_K,
+    LJ=L_J,
+    HL=A_G,
+    PRP=A_H,
+    POP=A_F,
+    )
+```
+
+Even nicer now!
+
+```{r, echo=FALSE}
+head(leia_bepun,n=c(3,8))
+```
+
+**Note:** If nothing else needs to be changed in the dataframe structure, it can be saved as a .csv for further analyses
+
+### Merging dataframes
+
+For each species we have different dataframes per view (body, head, ventral). But since we want to analyze all the distances together, we merge the dataframes to have an unique one per species.
+
+Also, to calculate the pectoral fin length (PCL) we apply Heron's equation and add the new value in a new column
+
+***Exyrias puntang***
+
+```{r epun merge}
+
+leia_bepun2 <- leia_bepun %>%  
+  mutate(PCL=(0.5*sqrt((PH+PH2+PFB)*(-PH+PH2+PFB)*(PH-PH2+PFB)*(PH+PH2-PFB))/PFB)) #Heron's equiation
+leia_hepun2 <- leia_hepun %>% 
+  dplyr::select(-ID,-lake, -goby) #we erase here because this columns are already on bepun
+leia_vepun2 <- leia_vepun %>% 
+  slice(-55) %>% #deleting WAR04_G7 (outlier)
+  dplyr::select(-ID,-lake, -goby) %>% 
+  mutate(PVL=(0.5*sqrt((PEH+PEH2+VF)*(-PEH+PEH2+VF)*(PEH-PEH2+VF)*(PEH+PEH2-VF)))/VF)
+distances_epun <- cbind(leia_bepun2, leia_hepun2, leia_vepun2)
+```
+
+***Acentrogobius janthinopterus***
+
+```{r}
+leia_bajan2 <- leia_bajan %>%  
+  mutate(PCL=(0.5*sqrt((PH+PH2+PFB)*(-PH+PH2+PFB)*(PH-PH2+PFB)*(PH+PH2-PFB))/PFB)) #Heron's equiation
+leia_hajan2 <- leia_hajan %>% 
+  dplyr::select(-ID,-lake, -goby) #we erase here because this columns are already on bepun
+distances_ajan <- cbind(leia_bajan2, leia_hajan2)
+```
+
+Finally, we save each dataframe into .csv for the next analyses
+
+```{r}
+write.csv(distances_epun,"data/distances_epun.csv")
+write.csv(distances_ajan,"data/distances_ajan.csv")
+```
+
+The following analyses can be found in "analyses/linear_morphometric_analyses"
