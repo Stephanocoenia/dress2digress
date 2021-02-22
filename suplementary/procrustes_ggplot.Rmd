@@ -1,0 +1,246 @@
+---
+title: "Procrustes analyses graphs using ggplot2"
+author: "Stephanie Martinez"
+date: "22/2/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Here we show how to plot the procrustes analysis and consensus shape using "*ggplot2".* Also, we show how to create a .gif and .mp4 showing the transition between shapes across different lakes.
+
+### Packages and data
+
+```{r packages, message=FALSE, warning=FALSE, results='hold'}
+library("geomorph")
+library("tidyverse")
+library("dplyr")
+library("data.table")
+library("artyfarty")
+library("ggpubr")
+library("ggplot2")
+library("patchwork")
+
+body_epun <- readland.tps("data/body_epun.TPS", specID = "ID", warnmsg =T)
+head_epun <- readland.tps("data/head_epun.TPS", specID = "ID", warnmsg =T)
+body_ajan <- readland.tps("data/body_ajan.TPS", specID = "ID", warnmsg =T)
+head_ajan <- readland.tps("data/head_ajan.TPS", specID = "ID", warnmsg =T)
+```
+
+### Procrustes analyses
+
+Now we can generate the procrustes analysis for each species and view
+
+```{r procrustes, message=FALSE, warning=FALSE}
+bepun_gpagen <- gpagen(body_epun, Proj=TRUE, print.progress = FALSE)
+hepun_gpagen <- gpagen(head_epun, Proj=TRUE, print.progress = FALSE)
+bajan_gpagen <- gpagen(body_ajan, Proj=TRUE, print.progress = FALSE)
+hajan_gpagen <- gpagen(head_ajan, Proj=TRUE, print.progress = FALSE)
+```
+
+This is how the plot looks using the basic **plot** function
+
+```{r}
+plot(bepun_gpagen)
+plot(hepun_gpagen)
+```
+
+So to make this using *ggplot* we need to extract the different dataframes from the gpagen funtion output.
+
+First, we can extract the consensus shape coordinates and the procrustes analysis coordinates to use it in our plots.
+
+```{r consensus}
+# Consensus
+con_bepun <- as.data.frame(bepun_gpagen$consensus)
+con_hepun <- as.data.frame(hepun_gpagen$consensus)
+con_bajan <- as.data.frame(bajan_gpagen$consensus)
+con_hajan <- as.data.frame(hajan_gpagen$consensus)
+# Procrustes coordinates
+pro_bepun <- as.data.frame(two.d.array(bepun_gpagen$coords))
+pro_hepun <- as.data.frame(two.d.array(hepun_gpagen$coords))
+pro_bajan <- as.data.frame(two.d.array(bajan_gpagen$coords))
+pro_hajan <- as.data.frame(two.d.array(hajan_gpagen$coords))
+```
+
+Second, reshape the coordinates dataframe (showing code only for *E. puntang*)
+
+```{r reshaping}
+
+landm_body<-18
+landm_head <- 12
+
+#body
+var1 <- as.data.frame(matrix(c("x","y"), landm_body, 2, byrow=T)) %>%   mutate(x=paste(.$V1, rownames(.), sep=""),
+         y=paste(.$V2, rownames(.), sep=""))
+var2 <- as.vector(t(var1[,-1:-2])) 
+names(pro_bepun) <- var2
+
+#head
+var3 <- as.data.frame(matrix(c("x","y"), landm_head, 2, byrow=T)) %>%   mutate(x=paste(.$V1, rownames(.), sep=""),
+         y=paste(.$V2, rownames(.), sep=""))
+var4 <- as.vector(t(var3[,-1:-2])) 
+names(pro_hepun) <- var4
+
+```
+
+```{r epun}
+#Body
+coords_bepun <- pro_bepun %>% 
+  mutate(ID=row.names(pro_bepun)) %>%
+  pivot_longer(-ID,names_to = "variable",values_to = "value") %>%
+  separate(variable, into=c("axis","point"), sep=1, convert = TRUE) %>% 
+  pivot_wider(names_from = axis, values_from = value) %>% 
+  separate(ID, into = c("lake", "goby","side"), sep = "_", remove = FALSE) %>%
+  dplyr::select(-side)
+#Head
+coords_hepun <- pro_hepun %>% 
+  mutate(ID=row.names(pro_hepun)) %>%
+  pivot_longer(-ID,names_to = "variable",values_to = "value") %>%
+  separate(variable, into=c("axis","point"), sep=1, convert = TRUE) %>% 
+  pivot_wider(names_from = axis, values_from = value) %>% 
+  separate(ID, into = c("lake", "goby","side"), sep = "_", remove = FALSE) %>%
+  dplyr::select(-side)
+```
+
+```{r ajan,message=FALSE, warning=FALSE, include=FALSE}
+names(pro_bajan) <- var2
+names(pro_hajan) <- var4
+#Body
+coords_bajan <- pro_bajan %>% 
+  mutate(ID=row.names(pro_bajan)) %>%
+  pivot_longer(-ID,names_to = "variable",values_to = "value") %>%
+  separate(variable, into=c("axis","point"), sep=1, convert = TRUE) %>% 
+  pivot_wider(names_from = axis, values_from = value) %>% 
+  separate(ID, into = c("lake", "goby","side"), sep = "_", remove = FALSE) %>%
+  dplyr::select(-side)
+
+#Head
+coords_hajan <- pro_hajan %>% 
+  mutate(ID=row.names(pro_hajan)) %>%
+  pivot_longer(-ID,names_to = "variable",values_to = "value") %>%
+  separate(variable, into=c("axis","point"), sep=1, convert = TRUE) %>% 
+  pivot_wider(names_from = axis, values_from = value) %>% 
+  separate(ID, into = c("lake", "goby","side"), sep = "_", remove = FALSE) %>%
+  dplyr::select(-side)
+```
+
+### Plotting
+
+Now we can plot using *ggplot2*
+
+```{r plot epun}
+
+plot_bepun <- ggplot() + theme_scientific() + ylim(-0.3,0.3) +
+  geom_point(data=coords_bepun,
+             aes(x=x,y=y)) +
+  geom_point(data=con_bepun,
+             aes(x=X,y=Y), size = 3.5, color="deepskyblue") +
+  ggtitle("E. puntang - Body view")+
+  theme(plot.title = element_text(hjust = 0),legend.title = element_blank())
+plot_hepun <- ggplot() + theme_scientific() + ylim(-0.5,0.5) +
+  geom_point(data=coords_hepun,
+             aes(x=x,y=y)) +
+  geom_point(data=con_hepun,
+             aes(x=X,y=Y), size = 3.5, color="darksalmon") +
+  ggtitle("E. puntang - Head view")+
+  theme(plot.title = element_text(hjust = 0),legend.title = element_blank())
+
+epun <- plot_bepun + plot_hepun + plot_layout(widths = c(1,1))
+epun
+ggsave("figures/procrustes_ggplot_epun.pdf")
+
+```
+
+```{r plot ajan}
+
+plot_bajan <- ggplot() + theme_scientific() + ylim(-0.3,0.3) +
+  geom_point(data=coords_bajan,
+             aes(x=x,y=y)) +
+  geom_point(data=con_bajan,
+             aes(x=X,y=Y), size = 3.5, color="deepskyblue") +
+  ggtitle("A. janthinopterus - Body view")+
+  theme(plot.title = element_text(hjust = 0),legend.title = element_blank())
+plot_hajan <- ggplot() + theme_scientific() + ylim(-0.5,0.5) +
+  geom_point(data=coords_hajan,
+             aes(x=x,y=y)) +
+  geom_point(data=con_hajan,
+             aes(x=X,y=Y), size = 3.5, color="darksalmon") +
+  ggtitle("A. janthinopterus - Head view")+
+  theme(plot.title = element_text(hjust = 0),legend.title = element_blank())
+
+ajan <- plot_bajan + plot_hajan
+ajan
+ggsave("figures/procrustes_ggplot_ajan.pdf")
+
+```
+
+### Animating plots
+
+Now the fun part begins! we can animate and transitions between plots. For example, we can observe how the shape shifts between lakes.
+
+We first need to load the following packages:
+
+```{r animate, message=FALSE, warning=FALSE}
+library("gganimate")
+library('gifski')
+library("png")
+library("av") #for video rendering
+```
+
+### *Exyrias puntang*
+
+```{r, message=FALSE, warning=FALSE}
+#Body
+plot_bepun2 <-ggplot(data=coords_bepun,aes(x=x,y=y))+ 
+  theme_scientific()+ ylim(-0.3,0.3) +
+  geom_point(aes(colour=lake))+ scale_color_brewer(palette="Dark2")+
+  ggtitle('E. puntang body - Lake {closest_state}')+
+  transition_states(lake,
+                    transition_length = 2,
+                    state_length = 3.5) +
+  theme(plot.title = element_text(hjust = 0),legend.title = element_blank(),
+        legend.position = "bottom")
+#Head
+plot_hepun2 <-ggplot(data=coords_hepun,aes(x=x,y=y))+ 
+  theme_scientific()+ ylim(-0.5,0.35) +
+  geom_point(aes(colour=lake))+ scale_color_brewer(palette="Dark2")+
+  ggtitle('E. puntang Head - Lake {closest_state}')+
+  transition_states(lake,
+                    transition_length = 2,
+                    state_length = 3.5) +
+  theme(plot.title = element_text(hjust = 0),legend.title = element_blank(),
+        legend.position = "bottom")
+plot_bepun2
+plot_hepun2
+```
+
+### *Acentrogobius janthinopterus*
+
+```{r}
+#Body
+plot_bajan2 <-ggplot(data=coords_bajan,aes(x=x,y=y))+ 
+  theme_scientific()+ ylim(-0.3,0.3) +
+  geom_point(aes(colour=lake))+ scale_color_brewer(palette="Dark2")+
+  ggtitle('A. janthinopterus body - Lake {closest_state}')+
+  transition_states(lake,
+                    transition_length = 2,
+                    state_length = 3.5) +
+  theme(plot.title = element_text(hjust = 0),legend.title = element_blank(),
+        legend.position = "bottom")
+#Head
+plot_hajan2 <-ggplot(data=coords_hajan,aes(x=x,y=y))+ 
+  theme_scientific()+ ylim(-0.5,0.35) +
+  geom_point(aes(colour=lake))+ scale_color_brewer(palette="Dark2")+
+  ggtitle('A. janthinopterus Head - Lake {closest_state}')+
+  transition_states(lake,
+                    transition_length = 2,
+                    state_length = 3.5) +
+  theme(plot.title = element_text(hjust = 0),legend.title = element_blank(),
+        legend.position = "bottom")
+plot_bajan2
+plot_hajan2
+```
