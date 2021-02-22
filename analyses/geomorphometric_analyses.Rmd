@@ -63,13 +63,18 @@ class_epun <- class %>%
 ### Superimposition of raw coordinates
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
+#Body
 bepun_gpagen <- gpagen(body_epun, Proj=TRUE, print.progress = FALSE)
+pdf(file="figures/procrustes_bepun.pdf")
 plot(bepun_gpagen)
 title(main="Body E.puntang procrustes")
+dev.off()
+#Head
 hepun_gpagen <- gpagen(head_epun, Proj=TRUE, print.progress = FALSE)
+pdf(file="figures/procrustes_hepun.pdf")
 plot(hepun_gpagen)
 title(main="Head E.puntang procrustes")
-
+dev.off()
 ```
 
 ### PCA of superimposed coordinates
@@ -143,8 +148,11 @@ plot_hepun <- ggplot()+
        y =paste("PCA2 (",round(axis2$Comp2[2],2),"%)")) +
   ggtitle("(b) Head landmarks")+
   theme(plot.title = element_text(hjust = -0.15))
-#Plot
+
+#Combined Plot
 ggarrange(plot_bepun, plot_hepun, common.legend=TRUE, legend = "bottom")
+
+ggsave("figures/geomorph_pca_epun.pdf", width = 13, height = 8)
 ```
 
 To select and pick warp grids in the PCA plot, you can use the function *picknplot*.*shape* from the package *geomorph*. However, these warps can only be extracted from a plot that uses the *plot* function. On the console, you can choose whether to select another point in the plot, and if you wish to save it as a .png image. See example bellow.
@@ -173,13 +181,18 @@ class_ajan <- class %>%
 ### Superimposition of raw coordinates
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
+#Body
 bajan_gpagen <- gpagen(body_ajan, Proj=TRUE, print.progress = FALSE)
+pdf(file="figures/procrustes_bajan.pdf")
 plot(bajan_gpagen)
 title(main="Body A.janthinopterus procrustes")
+dev.off()
+#Head
 hajan_gpagen <- gpagen(head_ajan, Proj=TRUE, print.progress = FALSE)
+pdf(file="figures/procrustes_hajan.pdf")
 plot(hajan_gpagen)
 title(main="Head A. janthinopterus procrustes")
-
+dev.off()
 ```
 
 ### PCA of superimposed coordinates
@@ -251,8 +264,10 @@ plot_hajan <- ggplot()+
        y =paste("PCA2 (",round(axis4$Comp2[2],2),"%)"))+
   ggtitle("(a) Head Landmarks")+
   theme(plot.title = element_text(hjust = -0.15))
-#Plot
+# Combined Plot
 ggarrange(plot_bajan, plot_hajan, common.legend=TRUE, legend = "bottom")
+
+ggsave("figures/geomorph_pca_ajan.pdf", width = 13, height = 8) #svgLite must be installed
 ```
 
 ## 3- Statistical analyses
