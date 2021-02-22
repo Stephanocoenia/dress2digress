@@ -1,7 +1,0 @@
----
-title: "analysis"
-author: "Stephanie Martinez"
-date: "12/1/2021"
-output: html_document
----
-
