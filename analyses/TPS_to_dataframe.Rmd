@@ -39,24 +39,26 @@ The number of landmarks (landm) used on the files should be replaced accordingly
 ```{r data, echo=FALSE}
 coords <- readland.tps("data/body_epun.TPS", specID ="ID", warnmsg = T)
 landm<-18
-coords_2d <- as.data.frame(two.d.array(coords)) # put in a 2D array with species as the x input and coordinates (x&y) as y input
+pro_coord <- as.data.frame(two.d.array(coords)) # put in a 2D array with species as the x input and coordinates (x&y) as y input
 
 ```
 
 ### Reshaping 2d array
 
 ```{r, echo=TRUE, message=FALSE, warning=FALSE}
-var1 <- as.data.frame(matrix(c("x","y"), landm, 2, byrow=T))
-var1$x <- paste(var1$V1, rownames(var1), sep="")
-var1$y <- paste(var1$V2, rownames(var1), sep="")
-var2 <- as.vector(t(var1[,-1:-2]))  # vector containing names of the variables
-names(coords_2d) <- var2 # dataframe with correct variable names
-coords1 <- coords_2d
-coords1$ID <- rownames(coords_2d)
-coords2 <- melt(coords1, id.vars="ID")
-coords2$axis <- substr(coords2$variable,1,1)
-coords2$point <- as.numeric(substr(coords2$variable,2,4))
-coords_final <- dcast(coords2, ID + point~axis) 
+var1 <- as.data.frame(matrix(c("x","y"), landm, 2, byrow=T)) %>% 
+  mutate(x=paste(.$V1, rownames(.), sep=""),
+         y=paste(.$V2, rownames(.), sep=""))
+var2 <- as.vector(t(var1[,-1:-2])) 
+names(pro_coord) <- var2  
+
+coords_final <- pro_coord %>% 
+  mutate(ID=row.names(pro_coord)) %>%
+  pivot_longer(-ID,names_to = "variable",values_to = "value") %>%
+  separate(variable, into=c("axis","point"), sep=1, convert = TRUE) %>% 
+  pivot_wider(names_from = axis, values_from = value) %>% 
+  separate(ID, into = c("lake", "goby","side"), sep = "_", remove = FALSE) %>%
+  dplyr::select(-side)
 ```
 
 ```{r}
