@@ -2,3 +2,5 @@
 .Rhistory
 .RData
 .Ruserdata
+figures/procrustes_ggplot_epun.pdf
+figures/procrustes_ggplot_ajan.pdf
