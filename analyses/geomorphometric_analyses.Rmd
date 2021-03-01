@@ -77,6 +77,8 @@ title(main="Head E.puntang procrustes")
 dev.off()
 ```
 
+This plots can also be done using ggplot2. The script for this and creating transition animations between shapes can be seen in "supplementary/procrustes_ggplot.Rmd"
+
 ### PCA of superimposed coordinates
 
 The PCA analysis was done using *geomorph*. Plotting was done by extracting values from the test and using *ggplot2.*
