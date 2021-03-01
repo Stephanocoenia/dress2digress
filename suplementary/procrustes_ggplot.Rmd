@@ -151,7 +151,7 @@ plot_hepun <- ggplot() + theme_scientific() + ylim(-0.5,0.5) +
 
 epun <- plot_bepun + plot_hepun + plot_layout(widths = c(1,1))
 epun
-ggsave("figures/procrustes_ggplot_epun.pdf")
+ggsave("figures/supplements/procrustes_ggplot_epun.pdf")
 
 ```
 
@@ -174,7 +174,7 @@ plot_hajan <- ggplot() + theme_scientific() + ylim(-0.5,0.5) +
 
 ajan <- plot_bajan + plot_hajan
 ajan
-ggsave("figures/procrustes_ggplot_ajan.pdf")
+ggsave("figures/supplements/procrustes_ggplot_ajan.pdf")
 
 ```
 
@@ -248,8 +248,8 @@ plot_hajan2
 ### Saving .gif files
 
 ```{r}
-anim_save("figures/epuntang_body.gif", plot_bepun2)
-anim_save("figures/epuntang_head.gif", plot_hepun2)
-anim_save("figures/ajanthinopterus_body.gif", plot_bajan2)
-anim_save("figures/ajanthinopterus_head.gif", plot_hajan2)
+anim_save("figures/supplements/epuntang_body.gif", plot_bepun2)
+anim_save("figures/supplements/epuntang_head.gif", plot_hepun2)
+anim_save("figures/supplements/ajanthinopterus_body.gif", plot_bajan2)
+anim_save("figures/supplements/ajanthinopterus_head.gif", plot_hajan2)
 ```
