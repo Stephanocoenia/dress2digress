@@ -1,0 +1,157 @@
+---
+title: "Buccal apparatus analyses"
+author: "Stephanie Martinez"
+date: "1/3/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+We took *in situ* measurements on *E. puntang* individuals while we where on the field. These measurements included the protrusion, width and height of the mouth. These characteristics are related to feeding capabilities.
+
+### Packages and data
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+
+mouth <- read.csv("data/mouthDim.csv", dec=".") 
+
+mouth2 <- mouth %>% 
+  filter(sp!="sp2") %>% 
+  dplyr::select(mheight,mwidth,prot)
+lakes <- mouth %>% 
+  filter(sp!="sp2") %>%
+  dplyr::select(location)
+ID <- mouth %>% 
+   filter(sp!="sp2") %>% 
+   dplyr::select(ID)
+```
+
+### Correcting for size
+
+Applying Mosimann's log-shape ratio
+
+```{r}
+var1_num <- as.numeric(ncol(mouth2))
+size <- apply(mouth2, 1, prod)^(1/var1_num) 
+log_mouth <- log(mouth2/ size)
+LSR_mouth <- cbind(lakes,log_mouth)
+```
+
+### Distribution boxplots
+
+```{r}
+p1 <-ggplot(LSR_mouth, aes(x=location, 
+                             y=mheight,
+                             fill=location,alpha=0.1)) +
+  scale_fill_manual(breaks=c("MIS01","MIS17","MIS20","WAR03","MIS14"), 
+                    values = c("#ffa500","#33A02C","#474444","#df546c","#B2DF8A"))+
+  geom_boxplot(show.legend = FALSE) + theme_scientific() + ggtitle("a)") +
+  theme(plot.title = element_text(hjust = 0), legend.title = element_blank(),axis.text.x = element_blank())+
+  labs(x="", y ="Mouth height (mm)")
+  
+p2 <- ggplot(LSR_mouth, aes(x=location, 
+                    y=mwidth,
+                    fill=location,alpha=0.1)) +
+  scale_fill_manual(breaks=c("MIS01","MIS17","MIS20","WAR03","MIS14"), 
+                    values = c("#ffa500","#33A02C","#474444","#df546c","#B2DF8A"))+
+  geom_boxplot(show.legend = FALSE) + theme_scientific() + ggtitle("b)")+
+  theme(plot.title = element_text(hjust = 0), legend.title = element_blank(), axis.text.x = element_blank())+
+  labs(x="", y ="Mouth width (mm)")
+
+p3<- ggplot(LSR_mouth, aes(x=location, 
+                    y=prot,
+                    fill=location,alpha=0.1)) +
+  scale_fill_manual(breaks=c("MIS01","MIS17","MIS20","WAR03","MIS14"), 
+                    values = c("#ffa500","#33A02C","#474444","#df546c","#8c008c"))+
+  geom_boxplot(show.legend = FALSE) + theme_scientific() + ggtitle("c)")+
+  theme(plot.title = element_text(hjust = 0), legend.title = element_blank())+
+  labs(x="", y ="Protusion (mm)")
+
+p1 / p2 / p3
+boxplot_mouth <- p1 / p2 / p3
+ggsave(boxplot_mouth, filename = "figures/supplements/boxplot_mouthD.pdf")
+
+```
+
+### Prinpical Component Analysis (PCA)
+
+Preparing dataframe for pca
+
+```{r}
+
+mouth.pca <- cbind(ID, LSR_mouth)
+df.pca <- mouth.pca %>% 
+  remove_rownames(.) %>% 
+  column_to_rownames(., var="ID") %>% 
+  dplyr::select(mheight, mwidth, prot)
+```
+
+PCA
+
+```{r}
+pca <- prcomp(df.pca, scale. = TRUE)
+```
+
+PCA plot (ggplot) preparation
+
+```{r}
+pcaV <- as.data.frame(pca$x) %>% 
+  dplyr::select(PC1, PC2) 
+a1 <- summary(pca) 
+axis <- as.data.frame(a1$importance) %>% 
+  dplyr::select(PC1,PC2) %>% 
+  mutate(PC1 = PC1*100, PC2 = PC2*100) 
+```
+
+```{r}
+p1 <- ggplot()+ 
+  theme_scientific()+
+  geom_point(data=pcaV,  
+             aes(x = PC1, 
+                 y = PC2,
+                 color =mouth.pca$location,
+                 shape= mouth.pca$location), size = 3) +
+  scale_color_manual(breaks=c("MIS01","MIS17","MIS20","WAR03","MIS14"), 
+                    values = c("#ffa500","#33A02C","#474444","#df546c","#8c008c")) +
+  scale_shape_manual(breaks=c("MIS01","MIS17","MIS20","WAR03","MIS14"),
+                     values=c(15,16,1,4,17))+
+  theme(legend.position = "bottom", legend.title = element_blank())+
+  labs(x=paste("PCA1 (",round(axis$PC1[2],2),"%)"), 
+       y =paste("PCA2 (",round(axis$PC2[2],2),"%)")) +
+  ggtitle("(a) PCA mouth dimensions ")+
+  theme(plot.title = element_text(hjust = -0.15))
+
+p2 <-fviz_pca_var(pca, col.circle="black", title="b) Variables", 
+                 xlab="PCA1 (63.5%)",
+                 ylab="PCA2 (23.5%)") + #Variables circles/eigenvalues
+  xlim(c(-1.2,1.2)) +
+  ylim(c(-1.2,1.2))
+
+p3 <- p1+p2
+ggsave(p3, filename = "figures/pca_mouthDimension.pdf")
+```
+
+ANOVA and pairwise test
+
+```{r}
+
+Anova(lm(pca$x[,1:2]~mouth.pca$location)) #taking away 1 dimension
+
+pwc <- mouth.pca %>%
+  gather(key = "variables", value = "value", mheight,mwidth,prot) %>%
+  group_by(variables) %>%
+  games_howell_test(value ~ location) %>%
+  select(-estimate, -conf.low, -conf.high) %>% 
+  as.data.frame() %>% 
+  filter(p.adj.signif!="ns")
+
+pwc
+```
