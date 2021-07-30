@@ -253,3 +253,97 @@ anim_save("figures/supplements/epuntang_head.gif", plot_hepun2)
 anim_save("figures/supplements/ajanthinopterus_body.gif", plot_bajan2)
 anim_save("figures/supplements/ajanthinopterus_head.gif", plot_hajan2)
 ```
+
+Individual plots per location / Contrast between low and medium connectivity lakes
+
+```{r}
+#Body
+
+mis01_bepun <- coords_bepun %>% 
+  dplyr::filter(grepl('MIS01', lake))
+
+plotb_mis01 <- ggplot() + theme_scientific() + ylim(-0.25,0.25) + xlim(-0.5, 0.7)+
+  geom_point(data=mis01_bepun,
+             aes(x=x,y=y)) +
+  geom_point(data=con_bepun, #consensus shape of all locations
+             aes(x=X,y=Y), size = 3, color="deepskyblue")+
+  ggtitle("E. puntang - MIS01 (medium conn)")+
+  theme(plot.title = element_text(hjust = 0),legend.title = element_blank())
+
+way04_bepun <- coords_bepun %>% 
+  dplyr::filter(grepl('WAY04', lake))
+
+plotb_way04 <- ggplot() + theme_scientific() + ylim(-0.25,0.25) + xlim(-0.5, 0.7)+
+  geom_point(data=way04_bepun,
+             aes(x=x,y=y)) +
+  geom_point(data=con_bepun, #consensus shape of all locations
+             aes(x=X,y=Y), size = 3, color="deepskyblue")+
+  ggtitle("E. puntang - WAY04 (low conn)")+
+  theme(plot.title = element_text(hjust = 0),legend.title = element_blank())
+
+plot_body <- plotb_mis01 + plotb_way04
+plot_body
+
+#Head
+
+mis01_hepun <- coords_hepun %>% 
+  dplyr::filter(grepl('MIS01', lake))
+
+ploth_mis01 <- ggplot() + theme_scientific() + ylim(-0.4,0.3) + 
+  geom_point(data=mis01_hepun,
+             aes(x=x,y=y)) +
+  geom_point(data=con_hepun,#consensus shape of all locations
+             aes(x=X,y=Y), size = 3, color="deepskyblue")+
+  ggtitle("E. puntang - MIS01 (medium conn)")+
+  theme(plot.title = element_text(hjust = 0),legend.title = element_blank())
+
+way04_hepun <- coords_hepun %>% 
+  dplyr::filter(grepl('WAY04', lake))
+
+ploth_way04 <- ggplot() + theme_scientific() + ylim(-0.4,0.3) +
+  geom_point(data=way04_hepun,
+             aes(x=x,y=y)) +
+  geom_point(data=con_hepun, #consensus shape of all locations
+             aes(x=X,y=Y), size = 3, color="deepskyblue")+
+  ggtitle("E. puntang - WAY04 (low conn)")+
+  theme(plot.title = element_text(hjust = 0),legend.title = element_blank())
+
+plot_head <- ploth_mis01 + ploth_way04
+plot_head
+
+ggsave(plot_body,"figures/supplements/epun_body_connectivity.pdf")
+ggsave(plot_head,"figures/supplements/epun_head_connectivity.pdf")
+```
+
+
+Combined
+
+```{r}
+
+body_comb <- coords_bepun %>% 
+  dplyr::filter(grepl('MIS01|WAY04', lake))
+
+
+p1 <- ggplot(data=body_comb,aes(x=x,y=y))+ 
+  theme_scientific()+ ylim(-0.3,0.3) +
+  geom_point(aes(colour=lake))+ scale_color_brewer(palette="Dark2")+
+  theme(plot.title = element_text(hjust = 0),legend.title = element_blank(),
+        legend.position = "bottom")
+p1
+
+
+head_comb <- coords_hepun %>% 
+  dplyr::filter(grepl('MIS01|WAY04', lake))
+
+
+p2 <- ggplot(data=head_comb,aes(x=x,y=y))+ 
+  theme_scientific()+ ylim(-0.4,0.4) +
+  geom_point(aes(colour=lake))+ scale_color_brewer(palette="Dark2")+
+  theme(plot.title = element_text(hjust = 0),legend.title = element_blank(),
+        legend.position = "bottom")
+p2
+
+p1 + p2 + plot_layout(guides = "collect") &
+  theme(legend.position='bottom')
+```
+
