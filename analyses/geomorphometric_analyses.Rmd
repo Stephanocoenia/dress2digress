@@ -28,6 +28,8 @@ library("dplyr")
 library("artyfarty")
 library("ggpubr")
 library("ggplot2")
+library("ggplotify")
+library("borealis")
 ```
 
 **Abbreviations:**
@@ -83,87 +85,53 @@ This plots can also be done using ggplot2. The script for this and creating tran
 
 The PCA analysis was done using *geomorph*. Plotting was done by extracting values from the test and using *ggplot2.*
 
-First, the PCA analysis
+First, the PCA analysis by creating a gm.prcomp object
 
 ```{r pca analyzes}
 pca_bepun <- gm.prcomp(bepun_gpagen$coords)
 pca_hepun <- gm.prcomp(hepun_gpagen$coords)
 ```
 
-Now, we can extract the values needed for plotting using *ggplot2.* We also set classifiers as factors for our plot.
+\*\*Update (2022): Morphospace plot generation in ggplot style has been updated by using the package "borealis". It is an easier way to generate the plots, with the option of adding convex hull polygons and warp grids. The old (and more manual) ggplot code can still be found at the end of script
 
-```{r message=FALSE, warning=FALSE, results='hide'}
+```{r pca plots, message=FALSE, warning=FALSE}
 
-#Grouping factors 
-lakes_epun <- as.factor(class_epun[,3])
-conn_epun <- as.factor(class_epun[,6])
-#extracting PCA component values for plot
-comp.bepun <- as.data.frame(pca_bepun$x) %>% 
-  dplyr::select(Comp1, Comp2) 
-comp.hepun <- as.data.frame(pca_hepun$x) %>% 
-  dplyr::select(Comp1, Comp2)
-#extracting PCA variance for plot axis
-a1 <- summary(pca_bepun) #make the summary an object to extract information
-axis1 <- as.data.frame(a1$PC.summary) %>% 
-  dplyr::select(Comp1,Comp2) %>% 
-  mutate(Comp1 = Comp1*100, Comp2 = Comp2*100)
-a2 <- summary(pca_hepun)  
-axis2 <- as.data.frame(a2$PC.summary) %>% 
-  dplyr::select(Comp1,Comp2) %>% 
-  mutate(Comp1 = Comp1*100, Comp2 = Comp2*100)
-```
+#Body 
 
-Finally, we can produce a plot using *ggplot*
+shape.space(pca_bepun, group = class_epun$lake, 
+            group.title = 'lake', 
+            convex.hulls = TRUE,
+            include.legend = FALSE,
+            color = c("#0C7BDC","#000000","#0C7BDC","#000000","#000000","#0C7BDC","#0C7BDC","#000000"),
+            group.label.size = 3,
+            save.as = "figures/SVG_composite/pca_body_epuntang.pdf",
+            height = 8, width = 13)
 
-```{r pca plot ggplot}
-#Body
-plot_bepun <- ggplot()+ 
-  theme_scientific()+
-  geom_point(data=comp.bepun,  
-             aes(x = Comp1, 
-                 y = Comp2,
-                 color =lakes_epun,
-                 shape= lakes_epun), size = 3) +
-  scale_color_manual(breaks=c("kar02","mis01","mis17","mis20","mis31","war03","war04","way04"), 
-                     values = c("#000080","#ffa500","#33A02C","#474444","#1078bf","#df546c","#B2DF8A","#1be0e4")) +
-  scale_shape_manual(breaks=c("kar02","mis01","mis17","mis20","mis31","war03","war04","way04"),
-                     values=c(8,15,16,1,18,4,15,10))+
-  theme(legend.position = "bottom", legend.title = element_blank())+
-  labs(x=paste("PCA1 (",round(axis1$Comp1[2],2),"%)"), 
-       y =paste("PCA2 (",round(axis1$Comp2[2],2),"%)")) +
-  ggtitle("(a) Body landmarks")+
-  theme(plot.title = element_text(hjust = -0.15))
-#Head
-plot_hepun <- ggplot()+ 
-  theme_scientific()+
-  geom_point(data=comp.hepun,  
-             aes(x = Comp1, 
-                 y = Comp2,
-                 color =lakes_epun,
-                 shape= lakes_epun), size = 3) +
-  scale_color_manual(breaks=c("kar02","mis01","mis17","mis20","mis31","war03","war04","way04"), 
-                     values = c("#000080","#ffa500","#33A02C","#474444","#1078bf","#df546c","#B2DF8A","#1be0e4")) +
-  scale_shape_manual(breaks=c("kar02","mis01","mis17","mis20","mis31","war03","war04","way04"),
-                     values=c(8,15,16,1,18,4,15,10))+
-  theme(legend.position = "bottom", legend.title = element_blank())+
-  labs(x=paste("PCA1 (",round(axis2$Comp1[2],2),"%)"), 
-       y =paste("PCA2 (",round(axis2$Comp2[2],2),"%)")) +
-  ggtitle("(b) Head landmarks")+
-  theme(plot.title = element_text(hjust = -0.15))
 
-#Combined Plot
-ggarrange(plot_bepun, plot_hepun, common.legend=TRUE, legend = "bottom")
+# Head
+shape.space(pca_hepun, group = class_epun$lake, 
+            group.title = 'lake', 
+            convex.hulls = TRUE,
+            include.legend = FALSE,
+            color = c("#0C7BDC","#000000","#0C7BDC","#000000","#000000","#0C7BDC","#0C7BDC","#000000"),
+            group.label.size = 3,
+            save.as = "figures/SVG_composite/pca_head_epuntang.pdf",
+            height = 8, width = 13)
 
-ggsave("figures/geomorph_pca_epun.pdf", width = 13, height = 8)
-```
+# Plot with warp grids - The grids overlap with the rest of the plot, so I used this code to extract the grids afterwards with Illustrator
 
-To select and pick warp grids in the PCA plot, you can use the function *picknplot*.*shape* from the package *geomorph*. However, these warps can only be extracted from a plot that uses the *plot* function. On the console, you can choose whether to select another point in the plot, and if you wish to save it as a .png image. See example bellow.
-
-```{r warp plots, eval=FALSE, message=FALSE, warning=FALSE}
-warp_bepun <- plot(pca_bepun, main="Body PCA Exyrias puntang")
-points(pca_bepun$x,pch=19, col=lakes_epun)
-legend("topleft", levels(lakes_epun), pch=19, col=1:8)
-picknplot.shape(warp_bepun) #select warp grid in PCA plot
+shape.space(pca_hepun, group = class_epun$lake, group.title = 'lake', convex.hulls = TRUE,
+            color = c("#0C7BDC","#000000","#0C7BDC","#000000","#000000","#0C7BDC","#0C7BDC","#000000"),
+            group.label.size = 3,
+            backtransform.examples = TRUE,
+            ref.shape = hepun_gpagen$consensus,
+            shape.method = "TPS",
+            bt.links = "none",
+            lm.labels = FALSE,
+            bt.margin.factor = 4, 
+            bt.inset.size = 0.35, 
+            save.as = "figures/SVG_composite/head_epuntang_PCAwarps.pdf",
+            width = 13, height = 8)
 
 ```
 
@@ -204,72 +172,49 @@ PCA analysis
 ```{r pca ajan analyzes}
 pca_bajan <- gm.prcomp(bajan_gpagen$coords)
 pca_hajan <- gm.prcomp(hajan_gpagen$coords)
+
 ```
 
-Extracting values needed for plotting using *ggplot2.* We also set classifiers as factors for our plot.
+PCA and warp grids plots
 
-```{r message=FALSE, warning=FALSE, results='hide'}
+```{r pca and warps plot, message=FALSE, warning=FALSE}
 
-#Grouping factors 
-lakes_ajan <- as.factor(class_ajan[,3])
-conn_ajan <- as.factor(class_ajan[,6])
-#extracting PCA component values for plot
-comp.bajan <- as.data.frame(pca_bajan$x) %>% 
-  dplyr::select(Comp1, Comp2) 
-comp.hajan <- as.data.frame(pca_hajan$x) %>% 
-  dplyr::select(Comp1, Comp2)
-#extracting PCA variance for plot axis
-a3 <- summary(pca_bajan) #make the summary an object to extract information
-axis3 <- as.data.frame(a3$PC.summary) %>% 
-  dplyr::select(Comp1,Comp2) %>% 
-  mutate(Comp1 = Comp1*100, Comp2 = Comp2*100)
-a4 <- summary(pca_hajan)  
-axis4 <- as.data.frame(a4$PC.summary) %>% 
-  dplyr::select(Comp1,Comp2) %>% 
-  mutate(Comp1 = Comp1*100, Comp2 = Comp2*100)
-```
+#Body 
 
-Finally, we can produce a plot using *ggplot* for *Acentrogobius janthinopterus*
+shape.space(pca_bajan, group = class_ajan$lake, 
+            group.title = 'lake', 
+            convex.hulls = TRUE,
+            include.legend = FALSE,
+            color = c("#0C7BDC","#000000","#0C7BDC","#000000","#000000","#0C7BDC","#0C7BDC","#000000"),
+            group.label.size = 3,
+            save.as = "figures/SVG_composite/pca_body_ajanthinopterus.pdf",
+            height = 8, width = 13)
 
-```{r pca plot ggplot ajan}
-#Body
-plot_bajan <- ggplot()+ 
-  theme_scientific()+
-  geom_point(data=comp.bajan,  
-             aes(x = Comp1, 
-                 y = Comp2,
-                 color =lakes_ajan,
-                 shape= lakes_ajan), size = 3) +
-  scale_color_manual(breaks=c("mis14","mis31","raj04","war01","war03","war04"), 
-                     values=c("#8c008c","#1078bf","#ff66b3","#000000","#fd1530","#B2DF8A")) +
-  scale_shape_manual(breaks=c("mis14","mis31","raj04","war01","war03","war04"),
-                     values=c(17,18,16,0,4,15))+
-  theme(legend.position = "bottom", legend.title = element_blank())+
-  labs(x=paste("PCA1 (",round(axis3$Comp1[2],2),"%)"), 
-       y =paste("PCA2 (",round(axis3$Comp2[2],2),"%)"))+
-  theme(plot.title = element_text(hjust = -0.15)) +
-  ggtitle("(a) Head Landmarks")
-#Head
-plot_hajan <- ggplot()+ 
-  theme_scientific()+
-  geom_point(data=comp.hajan,  
-             aes(x = Comp1, 
-                 y = Comp2,
-                 color =lakes_ajan,
-                 shape= lakes_ajan), size = 3) +
-  scale_color_manual(breaks=c("mis14","mis31","raj04","war01","war03","war04"), 
-                     values=c("#8c008c","#1078bf","#ff66b3","#000000","#fd1530","#B2DF8A")) +
-  scale_shape_manual(breaks=c("mis14","mis31","raj04","war01","war03","war04"),
-                     values=c(17,18,16,0,4,15))+
-  theme(legend.position = "bottom", legend.title = element_blank())+
-  labs(x=paste("PCA1 (",round(axis4$Comp1[2],2),"%)"), 
-       y =paste("PCA2 (",round(axis4$Comp2[2],2),"%)"))+
-  ggtitle("(a) Head Landmarks")+
-  theme(plot.title = element_text(hjust = -0.15))
-# Combined Plot
-ggarrange(plot_bajan, plot_hajan, common.legend=TRUE, legend = "bottom")
+# Head
 
-ggsave("figures/geomorph_pca_ajan.pdf", width = 13, height = 8) #svgLite must be installed
+shape.space(pca_hajan, group = class_ajan$lake, 
+            group.title = 'lake', 
+            convex.hulls = TRUE,
+            color = c("#0C7BDC","#000000","#000000","#0C7BDC","#0C7BDC","#0C7BDC"),
+            group.label.size = 3,
+            include.legend = FALSE,
+            save.as = "figures/SVG_composite/pca_head_ajanthinopterus.pdf",
+            height = 8, width = 13)
+
+# Plot to extract warp grids (same as previous species)
+
+shape.space(pca_hajan, group = class_ajan$lake, group.title = 'lake', convex.hulls = TRUE,
+            color = c("#0C7BDC","#000000","#000000","#0C7BDC","#0C7BDC","#0C7BDC"),
+            group.label.size = 3,
+            backtransform.examples = TRUE,
+            ref.shape = hajan_gpagen$consensus,
+            shape.method = "TPS",
+            bt.links = "none",
+            lm.labels = FALSE,
+            bt.margin.factor = 4, 
+            bt.inset.size = 0.35, 
+            save.as = "figures/SVG_composite/head_ajanthinopterus_PCAwarps.pdf",
+            width = 13, height = 8)
 ```
 
 ## 3- Statistical analyses
@@ -365,4 +310,248 @@ PW_bajan <- pairwise(fit1_bajan, groups = gdf_bajan$lake)
 summary(PW_bepun, test.type = "dist", confidence = 0.95, stat.table = FALSE)
 PW_hajan <- pairwise(fit3_hajan, groups = gdf_hajan$lake)
 summary(PW_hepun, test.type = "dist", confidence = 0.95, stat.table = FALSE)
+```
+
+## Generating morphospace plots with ggplot (old code)
+
+Old version of plots in ggplot version, and with each lake in a different color and shape.
+
+### *Exyrias puntang*
+
+We can extract the values needed for plotting the morphospace using *ggplot2.* We also set classifiers (grouping factors) as factors for our plot.
+
+```{r message=FALSE, warning=FALSE, results='hide'}
+
+#Grouping factors 
+lakes_epun <- as.factor(class_epun[,3])
+conn_epun <- as.factor(class_epun[,6])
+#extracting PCA component values for plot
+comp.bepun <- as.data.frame(pca_bepun$x) %>% 
+  dplyr::select(Comp1, Comp2) 
+comp.hepun <- as.data.frame(pca_hepun$x) %>% 
+  dplyr::select(Comp1, Comp2)
+#extracting PCA variance for plot axis
+a1 <- summary(pca_bepun) #make the summary an object to extract information
+axis1 <- as.data.frame(a1$PC.summary) %>% 
+  dplyr::select(Comp1,Comp2) %>% 
+  mutate(Comp1 = Comp1*100, Comp2 = Comp2*100)
+a2 <- summary(pca_hepun)  
+axis2 <- as.data.frame(a2$PC.summary) %>% 
+  dplyr::select(Comp1,Comp2) %>% 
+  mutate(Comp1 = Comp1*100, Comp2 = Comp2*100)
+
+#Preparing convex hull matrix
+env_epun <- class_epun %>% 
+  select(lake, connec)
+
+comp.bepun1 <- as.data.frame(pca_bepun$x) %>%  #Body
+  dplyr::select(Comp1, Comp2) %>% 
+  bind_cols(.,env_epun)
+  
+comp.hepun1 <- as.data.frame(pca_hepun$x) %>%  #Head
+  dplyr::select(Comp1, Comp2) %>% 
+  bind_cols(.,env_epun)
+
+hull_hepun <- comp.hepun1 %>% #convex hull matrix head
+  drop_na() %>% 
+  group_by(lake) %>% 
+  slice(chull(Comp1, Comp2))
+
+hull_bepun <- comp.bepun1 %>% #convex hull matrix body
+  drop_na() %>% 
+  group_by(lake) %>% 
+  slice(chull(Comp1, Comp2))
+
+```
+
+Finally, we can produce a plot using *ggplot*
+
+```{r pca plot ggplot}
+#Body
+plot_bepun <- ggplot()+ 
+  theme_scientific()+
+  geom_point(data=comp.bepun,  
+             aes(x = Comp1, 
+                 y = Comp2,
+                 color =lakes_epun,
+                 shape= lakes_epun), size = 3) +
+  scale_color_manual(breaks=c("kar02","mis01","mis17","mis20","mis31","war03","war04","way04"), 
+                     values = c("#000080","#ffa500","#33A02C","#474444","#1078bf","#df546c","#B2DF8A","#1be0e4")) +
+  scale_shape_manual(breaks=c("kar02","mis01","mis17","mis20","mis31","war03","war04","way04"),
+                     values=c(8,15,16,1,18,4,15,10))+
+  theme(legend.position = "bottom", legend.title = element_blank())+
+  labs(x=paste("PCA1 (",round(axis1$Comp1[2],2),"%)"), 
+       y =paste("PCA2 (",round(axis1$Comp2[2],2),"%)")) +
+  ggtitle("(a) Body landmarks")+
+  theme(plot.title = element_text(hjust = -0.15))+
+   geom_polygon(data = hull_bepun,
+               aes(x = Comp1, 
+                   y=, Comp2,
+                   fill = lake,
+                   colour = lake),
+               alpha = 0.2,
+               show.legend = FALSE) +
+  scale_fill_manual(breaks=c("kar02","mis01","mis17","mis20","mis31","war03","war04","way04"), 
+                    values = c("#000080","#ffa500","#33A02C","#474444","#1078bf","#df546c","#B2DF8A","#1be0e4"))
+
+#Head
+plot_hepun <- ggplot()+ 
+  theme_scientific()+
+  geom_point(data=comp.hepun,  
+             aes(x = Comp1, 
+                 y = Comp2,
+                 color =lakes_epun,
+                 shape= lakes_epun), size = 3) +
+  scale_color_manual(breaks=c("kar02","mis01","mis17","mis20","mis31","war03","war04","way04"), 
+                     values = c("#000080","#ffa500","#33A02C","#474444","#1078bf","#df546c","#B2DF8A","#1be0e4")) +
+  scale_shape_manual(breaks=c("kar02","mis01","mis17","mis20","mis31","war03","war04","way04"),
+                     values=c(8,15,16,1,18,4,15,10))+
+  theme(legend.position = "bottom", legend.title = element_blank())+
+  labs(x=paste("PCA1 (",round(axis2$Comp1[2],2),"%)"), 
+       y =paste("PCA2 (",round(axis2$Comp2[2],2),"%)")) +
+  ggtitle("(b) Head landmarks")+
+  theme(plot.title = element_text(hjust = -0.15))+
+  geom_polygon(data = hull_hepun,
+               aes(x = Comp1, 
+                   y=, Comp2,
+                   fill = lake,
+                   colour = lake),
+               alpha = 0.2,
+               show.legend = FALSE) +
+  scale_fill_manual(breaks=c("kar02","mis01","mis17","mis20","mis31","war03","war04","way04"), 
+                    values = c("#000080","#ffa500","#33A02C","#474444","#1078bf","#df546c","#B2DF8A","#1be0e4"))
+
+
+
+#Combined Plot
+ggarrange(plot_bepun, plot_hepun, common.legend=TRUE, legend = "bottom")
+
+ggsave("figures/geomorph_pca_epun.pdf", width = 13, height = 8)
+```
+
+To select and pick warp grids in the PCA plot, you can use the function *picknplot*.*shape* from the package *geomorph*. However, these warps can only be extracted from a plot that uses the *plot* function. On the console, you can choose whether to select another point in the plot, and if you wish to save it as a .png image. See example bellow.
+
+```{r warp plots, eval=FALSE, message=FALSE, warning=FALSE}
+
+#Body warps
+warp_bepun <- plot(pca_bepun, main="Body PCA Exyrias puntang", warpgrids=TRUE)
+points(pca_bepun$x,pch=19, col=conn_epun) #can also color by lake lakes_epun
+legend("topleft", levels(conn_epun), pch=19, col=1:8) #can also be lakes_epun
+picknplot.shape(warp_bepun) #select warp grid in PCA plot
+
+#Head warps
+warp_hepun <- plot(pca_hepun, main="Head PCA Exyrias puntang", warpgrids=TRUE)
+points(pca_hepun$x,pch=19, col=conn_epun, labels = lakes_epun)
+legend("topleft", levels(conn_epun), pch=19, col=1:8)
+picknplot.shape(warp_hepun) #select warp grid in PCA plot
+
+```
+
+### Acentrogobius janthinopterus
+
+We follow the same steps for the other species.
+
+```{r message=FALSE, warning=FALSE, results='hide'}
+
+#Grouping factors 
+lakes_ajan <- as.factor(class_ajan[,3])
+conn_ajan <- as.factor(class_ajan[,6])
+#extracting PCA component values for plot
+comp.bajan <- as.data.frame(pca_bajan$x) %>% 
+  dplyr::select(Comp1, Comp2) 
+comp.hajan <- as.data.frame(pca_hajan$x) %>% 
+  dplyr::select(Comp1, Comp2)
+#extracting PCA variance for plot axis
+a3 <- summary(pca_bajan) #make the summary an object to extract information
+axis3 <- as.data.frame(a3$PC.summary) %>% 
+  dplyr::select(Comp1,Comp2) %>% 
+  mutate(Comp1 = Comp1*100, Comp2 = Comp2*100)
+a4 <- summary(pca_hajan)  
+axis4 <- as.data.frame(a4$PC.summary) %>% 
+  dplyr::select(Comp1,Comp2) %>% 
+  mutate(Comp1 = Comp1*100, Comp2 = Comp2*100)
+
+#Preparing convex hull matrix
+env_ajan <- class_ajan %>% 
+  select(lake, connec)
+
+comp.bajan1 <- as.data.frame(pca_bajan$x) %>%  #Body
+  dplyr::select(Comp1, Comp2) %>% 
+  bind_cols(.,env_ajan)
+  
+comp.hajan1 <- as.data.frame(pca_hajan$x) %>%  #Head
+  dplyr::select(Comp1, Comp2) %>% 
+  bind_cols(.,env_ajan)
+
+hull_hajan <- comp.hajan1 %>% #convex hull matrix head
+  drop_na() %>% 
+  group_by(lake) %>% 
+  slice(chull(Comp1, Comp2))
+
+hull_bajan <- comp.bajan1 %>% #convex hull matrix body
+  drop_na() %>% 
+  group_by(lake) %>% 
+  slice(chull(Comp1, Comp2))
+```
+
+Finally, we can produce a plot using *ggplot* for *Acentrogobius janthinopterus*
+
+```{r pca plot ggplot ajan}
+#Body
+plot_bajan <- ggplot()+ 
+  theme_scientific()+
+  geom_point(data=comp.bajan,  
+             aes(x = Comp1, 
+                 y = Comp2,
+                 color =lakes_ajan,
+                 shape= lakes_ajan), size = 3) +
+  scale_color_manual(breaks=c("mis14","mis31","raj04","war01","war03","war04"), 
+                     values=c("#8c008c","#1078bf","#ff66b3","#000000","#fd1530","#B2DF8A")) +
+  scale_shape_manual(breaks=c("mis14","mis31","raj04","war01","war03","war04"),
+                     values=c(17,18,16,0,4,15))+
+  theme(legend.position = "bottom", legend.title = element_blank())+
+  labs(x=paste("PCA1 (",round(axis3$Comp1[2],2),"%)"), 
+       y =paste("PCA2 (",round(axis3$Comp2[2],2),"%)"))+
+  theme(plot.title = element_text(hjust = -0.15)) +
+  ggtitle("(a) Head Landmarks") +
+  geom_polygon(data = hull_bajan,
+               aes(x = Comp1, y=, Comp2,
+                   fill = lake,
+                   colour = lake),
+               alpha = 0.2,
+               show.legend = FALSE) +
+  scale_fill_manual(breaks=c("mis14","mis31","raj04","war01","war03","war04"), 
+                     values=c("#8c008c","#1078bf","#ff66b3","#000000","#fd1530","#B2DF8A"))
+
+#Head
+plot_hajan <- ggplot()+ 
+  theme_scientific()+
+  geom_point(data=comp.hajan,  
+             aes(x = Comp1, 
+                 y = Comp2,
+                 color =lakes_ajan,
+                 shape= lakes_ajan), size = 3) +
+  scale_color_manual(breaks=c("mis14","mis31","raj04","war01","war03","war04"), 
+                     values=c("#8c008c","#1078bf","#ff66b3","#000000","#fd1530","#B2DF8A")) +
+  scale_shape_manual(breaks=c("mis14","mis31","raj04","war01","war03","war04"),
+                     values=c(17,18,16,0,4,15))+
+  theme(legend.position = "bottom", legend.title = element_blank())+
+  labs(x=paste("PCA1 (",round(axis4$Comp1[2],2),"%)"), 
+       y =paste("PCA2 (",round(axis4$Comp2[2],2),"%)"))+
+  ggtitle("(a) Head Landmarks")+
+  theme(plot.title = element_text(hjust = -0.15))+
+  geom_polygon(data = hull_hajan,
+               aes(x = Comp1, 
+                   y=, Comp2,
+                   fill = lake,
+                   colour = lake),
+               alpha = 0.2,
+               show.legend = FALSE) +
+  scale_fill_manual(breaks=c("mis14","mis31","raj04","war01","war03","war04"), 
+                     values=c("#8c008c","#1078bf","#ff66b3","#000000","#fd1530","#B2DF8A"))
+
+# Combined Plot
+ggarrange(plot_bajan, plot_hajan, common.legend=TRUE, legend = "bottom")
+
+ggsave("figures/geomorph_pca_ajan.pdf", width = 13, height = 8) #svgLite must be installed
 ```
