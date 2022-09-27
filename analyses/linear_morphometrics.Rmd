@@ -5,6 +5,7 @@ date: "2020"
 output: html_document
 editor_options: 
   chunk_output_type: console
+bibliography: references.bib
 ---
 
 ```{r setup, include=FALSE}
@@ -33,7 +34,7 @@ dist_ajan <- read.csv("data/distances_ajan.csv",dec=".")
 
 ### Size correction
 
-To correct for the size differences among individuals we used the log-shape ratio approach by Mosimann (1970), and followed the script and considerations by Julien (2013).
+To correct for the size differences among individuals we used the log-shape ratio approach by [@mosimann1970], and followed the script and considerations by [@julien2013].
 
 First, we need to change the dataframe formats required for performing PCA analysis (further on)
 
@@ -68,7 +69,7 @@ LSR_ajan <- log(dist2_ajan/ size_ajan)
 
 ### Correlation analysis
 
-To avoid colinearity between variables, we did an correlation test. Furthermore, we discarded in further analysis the variables that presented more than 75% (\<0.75) correlation.
+To avoid colinearity between variables, we did an correlation test. Furthermore, we discarded in further analysis the variables that presented more than 75% (\<0.70) correlation.
 
 For this, we use ggpairs to visualize the correlation between all the variables. Since in these cases we have more than 20 variables, we'll separate the graphs for better visualization
 
@@ -90,25 +91,25 @@ ggsave(corr1_ajan,filename = "figures/supplements/corr1_ajan.pdf")
 ggsave(corr2_ajan,filename = "figures/supplements/corr2_ajan.pdf")
 ```
 
-Based on these results we took out the following variables (interlandmark distances) for each species:
+Based on these results and correlation values, we took out the following variables (interlandmark distances) for each species:
 
 ***Exyrias puntang:***
 
--   TL, HP, PH, PH2, PEH, PEH2, PRP, POP, PRF, DD, CPD, PAL, ABL
+-   TL, HP, PH, PH2, PEH, PEH2, PRP, POP, PRF, DD, CPD, PAL, ABL, ML, OW, LJ
 
 ***Acentrogobius janthinopterus:***
 
--   TL, HP, PH, PH2, PRP, POP, PRF, DD, CPD, PAL, ABL
+-   TL, HP, PH, PH2, PRP, POP, PRF, DD, CPD, PAL, ABL, SL, PFB, POD, LJ
 
 ```{r}
 #E. puntang
 corr_epun <- LSR_epun %>% 
-  dplyr::select(-TL,-HP,-PH,-PH2,-PEH,-PEH2,-PRP,-POP,-PRF,-DD,-CPD,-PAL,-ABL)
+  dplyr::select(-TL,-HP,-PH,-PH2,-PEH,-PEH2,-PRP,-POP,-PRF,-DD,-CPD,-PAL,-ABL, -OW, -ML, -LJ)
 # write.csv(corr_epun,"data/dist_corr_epun.csv")
 
 #A. janthinopterus
 corr_ajan <- LSR_ajan %>% 
-  dplyr::select(-TL,-HP,-PH,-PH2,-PRP,-POP,-PRF,-DD,-CPD,-PAL,-ABL)
+  dplyr::select(-TL,-HP,-PH,-PH2,-PRP,-POP,-PRF,-DD,-CPD,-PAL,-ABL, -SL, -PFB, -POD, -LJ)
 # write.csv(corr_ajan,"data/dist_corr_ajan.csv")
 ```
 
@@ -146,7 +147,7 @@ axis_ajan <- as.data.frame(a2$importance) %>%
 
 ### **Plots**
 
-**Adding classifiers**
+**Adding classifiers/ grouping variable**
 
 ```{r}
 lakes_epun <- as.factor(dist_epun[,3])
@@ -219,14 +220,15 @@ ggsave(p3_ajan, filename = "figures/supplements/pca_distances_ajan.pdf")
 
 To assess which variables (interlandmark distances) provides the maximal separation and differentiation between the lakes, a canonical discriminant analysis was done.
 
-First, we have to do a linear model and then apply the candisc funtion
+First, we have to do a linear model with the variables and then apply the candisc funtion. For the linear model, the variables will be the interlandmark distances used in the previous PCA. 
 
 ```{r lm}
 #E. puntang
-epun_lm <- lm(cbind(ED, BD, MBL, OW, PRO, VF, PFB, PCL, ML, LJ)~dist_epun$lake, data=corr_epun)
+epun_lm <- lm(cbind(PFB,BD, PCL, PRO, ED, POO, HL, VF)~dist_epun$lake, data=corr_epun)
+
 #A. janthinopterus 
-ajan_lm <- lm(cbind(ADL,ML,PRO,LJ,PCL,POD,ED,MBL,PFB,
-                          BD,POO)~dist_ajan$lake, data=corr_ajan)
+ajan_lm <- lm(cbind(ADL,ML,PRO,PCL,ED,MBL,
+                          BD,POO, HL)~dist_ajan$lake, data=corr_ajan)
 ```
 
 The candisc analysis can be represented in one or two dimensions. Both ways can help interpret the data and how the variables are interacting.
@@ -247,22 +249,42 @@ You can plot the results by using the basic plot function on the candisc object
 plot(epun_can2d)
 plot(epun_can1d)
 
+plot(ajan_can2d)
+plot(ajan_can1d)
+
 ```
 
-However, for better visualization we preferred using ggplot. As before (PCA plots) we need to extract certain elements from the candisc test and place them as datagrames.
+However, for better visualization we preferred using ggplot. As before (PCA plots) we need to extract certain elements from the candisc test and create a dataframes.
+
+We also only wanted to graphically represent the top 5 discriminant with the highest loading scores. For this we filtered the loading dataframe. The other variables are still part of the ordination analysis, but only the top 5 discriminants will be represented as vectors. 
 
 **Extracting vector loadings (structure) and scores**
 
 ```{r}
+
 #E. puntang
+
 str.epun <- epun_can2d$structure %>% 
   as.data.frame() %>% 
   dplyr::select(-Can3) %>% 
   rownames_to_column(., var="Var") 
+
 scores.epun<- epun_can2d$scores %>% 
   as.data.frame() %>% 
   rename(lake = 1)
+
+# Top 5 discriminant loading based on Can1 values (for visualization purpose only)
+
+top5_epun <- str.epun %>% 
+  select(-Can4, -Can5, -Can6, -Can7) %>% 
+  mutate(Can1_P = 100*Can1) %>% 
+  mutate(Can1_abs = abs(Can1_P)) %>% 
+  arrange(desc(Can1_abs)) %>% 
+  slice(1:5)
+  
+
 #A. janthinopterus
+
 str.ajan <- ajan_can2d$structure %>% 
   as.data.frame() %>% 
   dplyr::select(-Can3) %>% 
@@ -270,6 +292,17 @@ str.ajan <- ajan_can2d$structure %>%
 scores.ajan<- ajan_can2d$scores %>% 
   as.data.frame() %>% 
   rename(lake = 1)
+
+# Top 5 discriminate loading based on Can1 (for visualization purpose only)
+
+top5_ajan <- str.ajan %>% 
+  select(-Can4, -Can5) %>% 
+  mutate(Can1_P = 100*Can1) %>% 
+  mutate(Can1_abs = abs(Can1_P)) %>% 
+  arrange(desc(Can1_abs)) %>% 
+  slice(1:5)
+
+
 ```
 
 **2-Dimension CANDISC plots**
@@ -278,10 +311,6 @@ scores.ajan<- ajan_can2d$scores %>%
 
 ```{r}
 p_epun_can2d <- ggplot()+ 
-  theme_scientific()+ 
-  theme(legend.position = "bottom", legend.title = element_blank())+
-  labs(x=paste("Can1 (",round(epun_can2d$pct[1],1),"%)"), 
-       y =paste("Can2 (",round(epun_can2d$pct[2],1),"%)"))+
   geom_point(data=scores.epun, 
              aes(x = Can1, 
                  y = Can2, 
@@ -291,17 +320,21 @@ p_epun_can2d <- ggplot()+
                      values = c("#000080","#ffa500","#33A02C","#474444","#1078bf","#df546c","#B2DF8A","#1be0e4")) +
   scale_shape_manual(breaks=c("KAR02","MIS01","MIS17","MIS20","MIS31","WAR03","WAR04","WAY04"),
                      values=c(8,15,16,1,18,4,15,10)) +
+  theme_scientific()+ 
+  theme(legend.position = "bottom", legend.title = element_blank())+
+  labs(x=paste("CAN1 (",round(epun_can2d$pct[1],1),"%)"), 
+       y =paste("CAN2 (",round(epun_can2d$pct[2],1),"%)")) +
   
-  ## Adding Vectors
+  ## Adding Vectors (only adding top 5 - for all vectors replace top5_epun$Can1 and top5_epun$Can2 for str.epun$Can1 and str.epun$Can2)
   geom_segment(aes(x=0,y=0,
-                   xend=8*str.epun$Can1, 
-                   yend=8*str.epun$Can2),
+                   xend=8*top5_epun$Can1, 
+                   yend=8*top5_epun$Can2),
                color="black",alpha=.5,arrow=arrow(length=unit(0.3,"cm"))) +
-  ## Adding Vectors label
-  annotate("text", label = paste(str.epun$Var),
+  ## Adding Vectors label (replace too if you want to show all vectors)
+  annotate("text", label = paste(top5_epun$Var),
            fontface = 'italic',
-           x = 9.5*str.epun$Can1, 
-           y =8.3*str.epun$Can2,
+           x = 9.5*top5_epun$Can1, 
+           y =8.3*top5_epun$Can2,
            color="black",alpha=.5)+
   # Adding group mean
   geom_point(data=epun_can2d$means, 
@@ -309,8 +342,11 @@ p_epun_can2d <- ggplot()+
                  y = Can2,
                  color=unique(scores.epun$lake)),
              shape=3,size=3, stroke=2, show.legend = FALSE)
+
 p_epun_can2d
-ggsave(p_epun_can2d, filename = "figures/candisc2d_epun.pdf")
+
+ggsave(p_epun_can2d, filename = "figures/candisc2d_epun.pdf", 
+       width = 16, height = 14, units = "cm")
 ```
 
 *A. janthinopterus*
@@ -319,8 +355,8 @@ ggsave(p_epun_can2d, filename = "figures/candisc2d_epun.pdf")
 p_ajan_can2d <- ggplot()+ 
   theme_scientific()+ 
   theme(legend.position = "bottom", legend.title = element_blank())+
-  labs(x=paste("Can1 (",round(ajan_can2d$pct[1],1),"%)"), 
-       y =paste("Can2 (",round(ajan_can2d$pct[2],1),"%)"))+
+  labs(x=paste("CAN1 (",round(ajan_can2d$pct[1],1),"%)"), 
+       y =paste("CAN2 (",round(ajan_can2d$pct[2],1),"%)"))+
   geom_point(data=scores.ajan, 
              aes(x = Can1, 
                  y = Can2, 
@@ -333,14 +369,14 @@ p_ajan_can2d <- ggplot()+
   
   # Adding Vectors
   geom_segment(aes(x=0,y=0,
-                  xend=8*str.ajan$Can1, 
-                  yend=8*str.ajan$Can2),
+                  xend=8*top5_ajan$Can1, 
+                  yend=8*top5_ajan$Can2),
                color="black",alpha=.5,arrow=arrow(length=unit(0.3,"cm"))) +
   # Adding Vectors label
-  annotate("text", label = paste(str.ajan$Var),
+  annotate("text", label = paste(top5_ajan$Var),
                    fontface = 'italic',
-                   x = 9.5*str.ajan$Can1, 
-                  y =8.3*str.ajan$Can2,
+                   x = 9.5*top5_ajan$Can1, 
+                  y =8.3*top5_ajan$Can2,
                    color="black",alpha=.5)+
   # Adding group mean
   geom_point(data=ajan_can2d$means, 
@@ -348,13 +384,18 @@ p_ajan_can2d <- ggplot()+
                  y = Can2,
                  color=unique(scores.ajan$lake)),
              shape=3,size=3, stroke=2, show.legend = FALSE)
+
 p_ajan_can2d
-ggsave(p_ajan_can2d, filename = "figures/candisc2d_ajan.pdf")
+
+ggsave(p_ajan_can2d, filename = "figures/candisc2d_ajan.pdf", 
+       width = 16, height = 14, units = "cm")
 ```
 
 **1-Dimension CANDISC plots**
 
-As a complement, we can also observe the one dimensional visualization of the discriminate analysis next to the loading score of each discriminant (interlandmark distance)
+As a visual complement, we can also observe the one dimensional visualization of the discriminate analysis next to the loading score of each discriminant (interlandmark distance). This way we can observe the influence of each variable on each group (lake). 
+
+Since we 
 
 *E. puntang*
 
@@ -373,6 +414,7 @@ p1_epun_can1d <- ggplot(scores.epun, aes(x=lake,
   labs(x="", y =paste("Can1 (",round(epun_can1d$pct[1],2),"%)"))
 p1_epun_can1d
 
+
 #Structure scores / discriminant loadings
 
 structure_epun <- as.data.frame(epun_can1d$structure)
@@ -381,6 +423,7 @@ structure_epun <- structure_epun %>%
   rowid_to_column(var = "ID") %>% 
   mutate(Can1_P = 100*Can1)
 
+#Plots
 
 p2_epun_can1d <- ggplot(structure_epun) + theme_scientific()+
   geom_segment(aes(x=reorder(Vector,-Can1_P), xend=Vector, y=0, yend=Can1_P),
@@ -391,7 +434,7 @@ p2_epun_can1d <- ggplot(structure_epun) + theme_scientific()+
         axis.text.x = element_text(angle = 90))
 
 p2_epun_can1d
-p_epun_can1d <- p2_epun_can1d + p2_epun_can1d
+p_epun_can1d <- p1_epun_can1d + p2_epun_can1d
 ggsave(p_epun_can1d, filename = "figures/supplements/candisc1d_epun.pdf")
 ```
 
@@ -420,6 +463,8 @@ structure_ajan <- structure_ajan %>%
   mutate(Can1_P = 100*Can1)
   
 
+#Plots
+
 p2_ajan_can1d <- ggplot(structure_ajan) + theme_scientific()+
   geom_segment(aes(x=reorder(Vector,-Can1_P), xend=Vector, y=0, yend=Can1_P),
                arrow=arrow(length=unit(0.3,"cm")),color="blue")+
@@ -430,7 +475,7 @@ p2_ajan_can1d <- ggplot(structure_ajan) + theme_scientific()+
 
 p2_ajan_can1d
 p_ajan_can1d <- p1_ajan_can1d + p2_ajan_can1d
-ggsave(p_ajan_can2d, filename = "figures/supplements/candisc1d_ajan.pdf")
+ggsave(p_ajan_can1d, filename = "figures/supplements/candisc1d_ajan.pdf")
 
 ```
 
@@ -456,7 +501,7 @@ Manova(mod.ajan, test="Pillai")
 
 ```
 
-To see which interactions between variables are causing these differences, we can performe a pairwise test.
+To see which interactions between variables are causing these differences, we can perform a pairwise test.
 
 ```{r}
 #E. puntang
