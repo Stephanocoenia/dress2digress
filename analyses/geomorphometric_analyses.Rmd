@@ -34,6 +34,8 @@ library("borealis")
 
 **Abbreviations:**
 
+-   In classifier matrix: sp1 = Exyrias puntang  ; sp2 = Acentrogobius janthinopterus
+
 -   epun = *Exyrias puntang* ; ajan = *Acentrogobius janthinopterus*
 
 -   bepun = body *E. puntang ;* bajan = body *A. janthinopterus*
@@ -57,7 +59,7 @@ Adapt and clean the classifiers data frame to *E. puntang* .tps data structure
 
 ```{r epun clasifier}
 class_epun <- class %>%
-  filter(sp!="sp2") %>% 
+  filter(sp!="sp2") %>% #exclude ajantinoptherus
   filter(!grepl('WAR04_G7_L1', ID)) %>% #outlier - removed
   droplevels()
 ```
@@ -143,7 +145,7 @@ Adapt and clean the classifiers data frame to *E. puntang* .tps data structure
 
 ```{r ajan clasifier}
 class_ajan <- class %>%
-  filter(sp!="sp1") %>% 
+  filter(sp!="sp1") %>% #exclude epuntang
   filter(!grepl('KAR02', ID)) %>% 
   droplevels()
 ```
